@@ -141,8 +141,8 @@ def apply_filters_on_query(filters, parent, child, query):
 
 
 def get_data(filters):
-	purchase_order_entry = get_po_entries(filters)
-	mr_records, procurement_record_against_mr = get_mapped_mr_details(filters)
+	mr_records, procurement_record_against_mr, mrs = get_mapped_mr_details(filters)
+	purchase_order_entry = get_po_entries(mrs)
 	pr_records = get_mapped_pr_records()
 	pi_records = get_mapped_pi_records()
 
@@ -152,40 +152,39 @@ def get_data(filters):
 
 	for po in purchase_order_entry:
 		# fetch material records linked to the purchase order item
-		material_requests = mr_records.get(po.material_request_item, [{}])
-
-		for mr_record in material_requests:
-			procurement_detail = {
-				"material_request_date": mr_record.get("transaction_date"),
-				"mr_status": mr_record.get("status"),
-				"mr_quantity": mr_record.get("qty"),
-				"mr_unit_of_measurement": mr_record.get("uom"),
-				"material_request_site": mr_record.get("warehouse"),
-				"cost_center": po.cost_center,
-				"project": po.project,
-				"requesting_site": po.warehouse,
-				"requestor": po.owner,
-				"material_request_no": po.material_request,
-				"item_code": po.item_code,
-				"quantity": flt(po.qty),
-				"unit_of_measurement": po.uom,
-				"status": po.status,
-				"purchase_order_date": po.transaction_date,
-				"purchase_order": po.parent,
-				"supplier": po.supplier,
-				"estimated_rate": flt(mr_record.get("rate")),
-				"actual_rate": flt(pi_records.get(po.name)) or 0,
-				"purchase_order_rate": flt(po.rate),
-				"expected_delivery_date": po.schedule_date,
-				"actual_delivery_date": pr_records.get(po.name),
-			}
-			procurement_record.append(procurement_detail)
+		mr_record = mr_records.get(po.material_request_item, {})
+		procurement_detail = {
+			"material_request_date": mr_record.get("transaction_date"),
+			"mr_status": mr_record.get("status"),
+			"mr_quantity": mr_record.get("qty"),
+			"mr_unit_of_measurement": mr_record.get("uom"),
+			"material_request_site": mr_record.get("warehouse"),
+			"cost_center": po.cost_center,
+			"project": po.project,
+			"requesting_site": po.warehouse,
+			"requestor": po.owner,
+			"material_request_no": po.material_request,
+			"item_code": po.item_code,
+			"quantity": flt(po.qty),
+			"unit_of_measurement": po.uom,
+			"status": po.status,
+			"purchase_order_date": po.transaction_date,
+			"purchase_order": po.parent,
+			"supplier": po.supplier,
+			"estimated_rate": flt(mr_record.get("rate")),
+			"actual_rate": flt(pi_records.get(po.name)) or 0,
+			"purchase_order_rate": flt(po.rate),
+			"expected_delivery_date": po.schedule_date,
+			"actual_delivery_date": pr_records.get(po.name),
+		}
+		procurement_record.append(procurement_detail)
 
 	return procurement_record
 
 
 def get_mapped_mr_details(filters):
 	mr_records = {}
+	mrs = set()
 	parent = frappe.qb.DocType("Material Request")
 	child = frappe.qb.DocType("Material Request Item")
 
@@ -214,9 +213,10 @@ def get_mapped_mr_details(filters):
 	mr_details = query.run(as_dict=True)
 
 	procurement_record_against_mr = []
-	for record in mr_details:
+	for record in mr_details:	
+		mrs.add(record.parent)
 		if record.per_ordered:
-			mr_records.setdefault(record.name, []).append(frappe._dict(record))
+			mr_records.setdefault(record.name, frappe._dict(record))
 		else:
 			procurement_record_details = dict(
 				material_request_date=record.transaction_date,
@@ -235,7 +235,7 @@ def get_mapped_mr_details(filters):
 				cost_center=record.cost_center,
 			)
 			procurement_record_against_mr.append(procurement_record_details)
-	return mr_records, procurement_record_against_mr
+	return mr_records, procurement_record_against_mr, list(mrs)
 
 
 def get_mapped_pi_records():
@@ -274,7 +274,7 @@ def get_mapped_pr_records():
 	return frappe._dict(pr_records)
 
 
-def get_po_entries(filters):
+def get_po_entries(mrs):
 	parent = frappe.qb.DocType("Purchase Order")
 	child = frappe.qb.DocType("Purchase Order Item")
 
@@ -304,10 +304,10 @@ def get_po_entries(filters):
 		.where(
 			(parent.docstatus == 1)
 			& (parent.name == child.parent)
+			& child.material_request.isin(mrs)
 			& (parent.status.notin(("Closed", "Completed", "Cancelled")))
 		)
 		.groupby(parent.name, child.material_request_item)
 	)
-	query = apply_filters_on_query(filters, parent, child, query)
 
 	return query.run(as_dict=True)
