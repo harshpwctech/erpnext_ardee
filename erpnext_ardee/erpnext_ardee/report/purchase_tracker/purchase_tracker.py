@@ -25,9 +25,9 @@ def get_columns(filters):
 			"fieldname": "item_code",
 			"fieldtype": "Link",
 			"options": "Item",
-			"width": 150,
+			"width": 250,
 		},
-		{"label": _("MR Status"), "fieldname": "mr_status", "fieldtype": "data", "width": 140},
+		{"label": _("MR Status"), "fieldname": "mr_status", "fieldtype": "data", "width": 100},
 		{
 			"label": _("Project"),
 			"options": "Project",
@@ -40,14 +40,14 @@ def get_columns(filters):
 			"options": "Warehouse",
 			"fieldname": "material_request_site",
 			"fieldtype": "Link",
-			"width": 140,
+			"width": 180,
 		},
 		{
 			"label": _("Material Request No"),
 			"options": "Material Request",
 			"fieldname": "material_request_no",
 			"fieldtype": "Link",
-			"width": 140,
+			"width": 240,
 		},
 		{"label": _("MR Quantity"), "fieldname": "mr_quantity", "fieldtype": "Float", "width": 140},
 		{
@@ -57,12 +57,12 @@ def get_columns(filters):
 			"fieldtype": "Link",
 			"width": 140,
 		},
-		{
-			"label": _("Estimated Rate"),
-			"fieldname": "estimated_rate",
-			"fieldtype": "Float",
-			"width": 140,
-		},
+		# {
+		# 	"label": _("Estimated Rate"),
+		# 	"fieldname": "estimated_rate",
+		# 	"fieldtype": "Float",
+		# 	"width": 140,
+		# },
 		{"label": _("PO Status"), "fieldname": "status", "fieldtype": "data", "width": 140},
 		{
 			"label": _("PO Warehouse"),
@@ -106,6 +106,12 @@ def get_columns(filters):
 			"width": 140,
 		},
 		{
+			"label": _("Purchase Order Amount"),
+			"fieldname": "purchase_order_amount",
+			"fieldtype": "Float",
+			"width": 140,
+		},
+		{
 			"label": _("Expected Delivery Date"),
 			"fieldname": "expected_delivery_date",
 			"fieldtype": "Date",
@@ -117,7 +123,7 @@ def get_columns(filters):
 			"fieldtype": "Date",
 			"width": 140,
 		},
-		{"label": _("Actual Rate"), "fieldname": "actual_rate", "fieldtype": "Float", "width": 140},
+		# {"label": _("Actual Rate"), "fieldname": "actual_rate", "fieldtype": "Float", "width": 140},
 	]
 	return columns
 
@@ -174,6 +180,7 @@ def get_data(filters):
 			"estimated_rate": flt(mr_record.get("rate")),
 			"actual_rate": flt(pi_records.get(po.name)) or 0,
 			"purchase_order_rate": flt(po.rate),
+			"purchase_order_amount": flt(po.amount),
 			"expected_delivery_date": po.schedule_date,
 			"actual_delivery_date": pr_records.get(po.name),
 		}
@@ -294,6 +301,7 @@ def get_po_entries(mrs):
 			child.uom,
 			child.qty,
 			child.rate,
+			child.amount,
 			child.base_amount,
 			child.schedule_date,
 			parent.transaction_date,
